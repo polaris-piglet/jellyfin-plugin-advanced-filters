@@ -77,7 +77,11 @@
             if (i.OfficialRating) sets.OfficialRatings.add(i.OfficialRating);
             if (i.ProductionYear) sets.Years.add(String(i.ProductionYear));
             if (i.Album) sets.Albums.add(i.Album);
-            for (const v of i.People || []) if (guid.test(v.Id || '') && v.Name) people.set(v.Id, {Id:v.Id, Name:v.Name, Type:v.Type || 'Unknown'});
+            for (const v of i.People || []) if (guid.test(v.Id || '') && v.Name) {
+                const old = people.get(v.Id);
+                const roles = new Set([...(old?.Types || []),v.Type || 'Unknown']);
+                people.set(v.Id, {Id:v.Id, Name:v.Name, Type:[...roles].join('/'), Types:[...roles]});
+            }
         }
         return {values:Object.fromEntries(Object.entries(sets).map(([k,s]) => [k,[...s].sort((a,b)=>a.localeCompare(b))])), people:[...people.values()].sort((a,b)=>a.Name.localeCompare(b.Name))};
     }
@@ -96,5 +100,18 @@
         } while (all.length < total && all.length < max);
         return {...facets(all), complete:all.length >= total, count:all.length, total};
     }
-    return {schema,buildQuery,facets,loadFacets};
+    function normalizeName(value) {
+        return String(value).normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase()
+            .replace(/[\p{P}\p{Z}\s]+/gu,'');
+    }
+    // Keyword/substring matching, not guesses about identities or automatic alias merging.
+    function searchPeople(people, keyword, limit = 200) {
+        const words = String(keyword).trim().split(/\s+/u).map(normalizeName).filter(Boolean);
+        const matches = people.filter(p => words.every(w => normalizeName(p.Name).includes(w)));
+        const exact = normalizeName(keyword);
+        matches.sort((a,b) => Number(normalizeName(b.Name) === exact) - Number(normalizeName(a.Name) === exact)
+            || a.Name.localeCompare(b.Name) || a.Id.localeCompare(b.Id));
+        return {items:matches.slice(0,limit), total:matches.length};
+    }
+    return {schema,buildQuery,facets,loadFacets,searchPeople};
 });

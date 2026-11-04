@@ -4,6 +4,7 @@
     if (window.JellyfinLibraryFilter) return;
     const core = window.JellyfinLibraryFilterCore;
     let host, shadow, epoch = 0, page = 0, activeUser, activeClient;
+    let people = [], personSearch, personHint;
     let library, person, form, results, status, previous, next, queryButton, candidateButton;
     const fields = new Map();
     function el(tag, text, attrs = {}) {
@@ -28,8 +29,18 @@
         if (ticket !== epoch) return;
         clearResults(); resetCandidates(); status.textContent='账号或服务器已改变，请关闭后重新打开。';
     }
+    function renderPeople() {
+        const selected = person.value;
+        const matches = core.searchPeople(people, personSearch.value);
+        person.replaceChildren(); option(person,'','请选择候选人物 / 不限制');
+        for (const p of matches.items) option(person,p.Id,`${p.Name} (${p.Type}) · ${p.Id.slice(0,8)}`);
+        if (matches.items.some(p => p.Id === selected)) person.value = selected;
+        personHint.textContent = people.length ? `匹配 ${matches.total} 位，显示前 ${matches.items.length} 位。选中人物后按 ID 精确筛选。`
+            : '请先选择媒体库并点击“读取该库筛选候选”；不会自动联网搜索演员。';
+        fields.get('Person').input.disabled = Boolean(person.value);
+    }
     function resetCandidates() {
-        person.replaceChildren(); option(person,'','不限制 / 手输姓名');
+        people = []; personSearch.value = ''; renderPeople();
         for (const {list} of fields.values()) if (list) list.replaceChildren();
     }
     async function run(start = 0) {
@@ -37,6 +48,7 @@
         try {
             const c=client();
             if (c.user !== activeUser || c.api !== activeClient) return expire(ticket);
+            if (personSearch.value.trim() && !person.value) throw new Error('请从模糊搜索候选中选择人物，或清空人物关键词');
             const values=Object.fromEntries([...fields].map(([key,{input}])=>[key,input.value]));
             const q=core.buildQuery(values,{userId:c.user,parentId:library.value,personId:person.value,start});
             status.textContent='查询中…'; queryButton.disabled=true;
@@ -76,12 +88,12 @@
                 const list=fields.get(key)?.list;
                 if (list) for(const v of values) list.append(el('option',undefined,{value:v}));
             }
-            for(const p of f.people) option(person,p.Id,`${p.Name} (${p.Type})`);
+            people = f.people; renderPeople();
             status.textContent=f.complete ? `候选项已读取：${f.count} 条元数据` : `仅载入前 ${f.count}/${f.total} 条的候选项；仍可手输，查询结果不受此上限限制`;
         } catch(e) { if(ticket===epoch) status.textContent=e.message; }
         finally { if(ticket===epoch) candidateButton.disabled=false; }
     }
-    function close() { ++epoch; host?.remove(); host=undefined; fields.clear(); launch.focus(); }
+    function close() { ++epoch; host?.remove(); host=undefined; fields.clear(); people=[]; launch.focus(); }
     async function open() {
         if(host) return;
         host=el('div',undefined,{id:'jlf-host'}); shadow=host.attachShadow({mode:'open'});
@@ -114,13 +126,19 @@
             }
             input.name=f.key; label.append(input);groups.get(f.group).append(label); fields.set(f.key,{input,list});
         }
-        const label=el('label','已知人物（按 ID 精确匹配）');person=el('select');option(person,'','不限制 / 手输姓名');label.append(person);groups.get('人物与分类').prepend(label);
+        const searchLabel=el('label','演员 / 人物关键词（模糊匹配）');
+        personSearch=el('input',undefined,{type:'search',placeholder:'输入部分姓名，如 唐尼、Robert',maxlength:'100'});
+        personHint=el('small',undefined,{'role':'status','aria-live':'polite',id:'jlf-person-hint'});
+        personSearch.setAttribute('aria-describedby','jlf-person-hint'); searchLabel.append(personSearch,personHint);
+        const label=el('label','匹配人物（请选择）');person=el('select',undefined,{size:'6'}); label.append(person);
+        groups.get('人物与分类').prepend(searchLabel,label); renderPeople();
+        personSearch.oninput=()=>{person.value='';renderPeople();};
         person.onchange=()=>{const i=fields.get('Person').input;i.disabled=Boolean(person.value);};
         const actions=el('div',undefined,{class:'tools'});queryButton=el('button','筛选',{type:'submit'});const reset=el('button','清空条件',{type:'button'});
-        reset.onclick=()=>{++epoch;form.reset();person.value='';fields.get('Person').input.disabled=false;clearResults();queryButton.disabled=false;candidateButton.disabled=false;status.textContent='条件已清空';};
+        reset.onclick=()=>{++epoch;form.reset();person.value='';renderPeople();fields.get('Person').input.disabled=false;clearResults();queryButton.disabled=false;candidateButton.disabled=false;status.textContent='条件已清空';};
         form.addEventListener('input',()=>{++epoch;clearResults();queryButton.disabled=false;candidateButton.disabled=false;status.textContent='条件已改变，请重新筛选';});
         actions.append(queryButton,reset);form.append(actions);form.onsubmit=e=>{e.preventDefault();run(0);};
-        status=el('p','请设置条件后查询',{'role':'status','aria-live':'polite'});results=el('div',undefined,{class:'results'});dialog.append(status,results);
+        status=el('p','请设置条件后查询',{'role':'status','aria-live':'polite','aria-label':'查询状态'});results=el('div',undefined,{class:'results'});dialog.append(status,results);
         const paging=el('div',undefined,{class:'tools'});previous=el('button','上一页');next=el('button','下一页');previous.disabled=next.disabled=true;
         previous.onclick=()=>run(Math.max(0,page-48));next.onclick=()=>run(page+48);paging.append(previous,next);dialog.append(paging);
         library.onchange=()=>{++epoch;resetCandidates();clearResults();form.reset();fields.get('Person').input.disabled=false;candidateButton.disabled=false;queryButton.disabled=false;status.textContent='媒体库已切换，候选项已清空';};

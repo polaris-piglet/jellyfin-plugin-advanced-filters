@@ -2,7 +2,7 @@
 
 轻量的 Jellyfin Web 高级组合筛选扩展。中文优先，使用现有媒体元数据，不刮削、不移动文件、不创建合集。
 
-**状态：0.1.0.0 实验版，已发布原生 DLL 安装包。** GitHub Actions 编译测试通过，已在 Jellyfin 12.4 网页完成插件目录安装和基本查询验证。普通账号权限隔离、其他客户端和全部字段语义尚未验收，详见 [验收清单](docs/acceptance.md)。
+**状态：0.1.1.0 实验版，已发布原生 DLL 安装包。** GitHub Actions 编译测试通过，已在 Jellyfin 12.4 网页完成插件目录安装和基本查询验证。普通账号权限隔离、其他客户端和全部字段语义尚未验收，详见 [验收清单](docs/acceptance.md)。
 
 ## 功能
 
@@ -41,3 +41,7 @@ MIT 许可证；发布仓库为 https://github.com/polaris-piglet/jellyfin-plugi
 ## DLL 构建与发布
 
 .NET SDK 10：`npm run build` 后执行 `dotnet build server/Jellyfin.Plugin.AdvancedFilters.csproj -c Release`，再运行 `python3 scripts/package.py`。推送分支仅测试；推送对应版本标签触发 Release，临时测试 artifact 保留 3 天。不使用大型付费 runner。安装包和清单保存在 Releases。
+
+## 演员关键词搜索
+
+选择媒体库 → 读取该库筛选候选 → 在“演员 / 人物关键词”输入部分姓名 → 在“匹配人物”选中一项 → 点击筛选。支持中文包含匹配、英文大小写/重音/全半角归一化、多词任意顺序同时匹配。不是拼音、别名或错别字智能纠正；这些信息不存在时不猜测。候选上限仍适用，未完整读取时不能宣称查遍全库。

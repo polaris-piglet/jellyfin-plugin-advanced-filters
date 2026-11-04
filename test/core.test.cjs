@@ -19,3 +19,13 @@ test('facet pagination complete',async()=>{const f=await loadFacets(async(start)
 test('facet cap clearly signals incomplete',async()=>{const f=await loadFacets(async()=>({Items:[{Tags:['A']}],TotalRecordCount:2}),{max:1});assert.equal(f.complete,false);assert.equal(f.count,1);});
 test('empty intermediate page fails instead of silently truncating',async()=>await assert.rejects(loadFacets(async()=>({Items:[],TotalRecordCount:2}))));
 test('cancellation rejects results received after account change',async()=>{let alive=true;await assert.rejects(loadFacets(async()=>{alive=false;return{Items:[],TotalRecordCount:0};},{alive:()=>alive}));});
+
+const {searchPeople}=require('../src/core');
+const people=[{Id:'1',Name:'小罗伯特·唐尼'},{Id:'2',Name:'Robert Downey Jr.'},{Id:'3',Name:'José García'},{Id:'4',Name:'Robert Downey Jr.'}];
+test('partial Chinese name',()=>assert.deepEqual(searchPeople(people,'唐尼').items.map(p=>p.Id),['1']));
+test('case width punctuation and word order',()=>assert.equal(searchPeople(people,'ＤＯＷＮＥＹ robert').total,2));
+test('diacritics normalized',()=>assert.equal(searchPeople(people,'jose garcia').total,1));
+test('duplicate names stay separate IDs',()=>assert.equal(searchPeople(people,'Robert').total,2));
+test('unmatched keyword never returns unfiltered candidates',()=>assert.equal(searchPeople(people,'不存在').total,0));
+test('candidate limit preserves total',()=>{const r=searchPeople(people,'',2);assert.equal(r.total,4);assert.equal(r.items.length,2);});
+test('same person roles preserved',()=>{const f=facets([{People:[{Id:'3'.repeat(32),Name:'A',Type:'Actor'},{Id:'3'.repeat(32),Name:'A',Type:'Producer'}]}]);assert.deepEqual(f.people[0].Types,['Actor','Producer']);});
