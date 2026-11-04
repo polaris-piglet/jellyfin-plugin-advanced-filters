@@ -1,0 +1,1 @@
+{"name":"jellyfin-library-filter","version":"0.1.0-alpha.1","private":true,"description":"Permission-aware advanced filters for Jellyfin Web","license":"MIT","scripts":{"build":"node scripts/build.cjs","test":"node --test","demo":"node scripts/serve.cjs"},"engines":{"node":">=20"}}
