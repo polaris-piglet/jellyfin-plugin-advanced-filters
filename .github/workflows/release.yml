@@ -1,0 +1,36 @@
+name: Release plugin
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: npm test
+      - run: npm run build
+      - run: dotnet build server/Jellyfin.Plugin.AdvancedFilters.csproj -c Release
+      - run: python3 scripts/package.py
+      - name: Validate version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os,json
+          m=json.load(open('release/manifest.json'))
+          assert os.environ['RELEASE_TAG']=='v'+m[0]['versions'][0]['version']
+          PY
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release create "$RELEASE_TAG" release/* --verify-tag --title "Advanced Filters $RELEASE_TAG (experimental)" --notes-file docs/release-notes.md

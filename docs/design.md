@@ -27,4 +27,4 @@
 
 ## 集成路线
 
-先独立 JS 扩展与模拟测试，再在授权测试环境核对实际 ApiClient 与接口语义，然后选择 JavaScript Injector 接入或封装 .NET 服务端 DLL。当前没有 .NET SDK，不生成未经编译的假安装包或 manifest。上线前验收再确定正式兼容版本。
+先独立 JS 扩展与模拟测试，再在授权测试环境核对实际 ApiClient 与接口语义，然后选择 JavaScript Injector 接入或封装 .NET 服务端 DLL。使用 GitHub Actions 的 .NET 10 构建 DLL 并生成带真实校验值的安装清单；构建失败不发布。上线前验收再确定正式兼容版本。

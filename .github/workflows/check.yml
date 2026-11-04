@@ -1,15 +1,29 @@
-name: check
-on: [push, pull_request]
+name: Build and test
+on:
+  push:
+    branches: ['**']
+  pull_request:
 permissions:
   contents: read
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
       - run: npm test
       - run: npm run build
+      - run: dotnet build server/Jellyfin.Plugin.AdvancedFilters.csproj -c Release
+      - run: python3 scripts/package.py
       - run: git diff --check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: advanced-filters-test-build
+          path: release/
+          retention-days: 3

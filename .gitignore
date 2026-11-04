@@ -5,3 +5,9 @@ dist/
 *.pem
 .DS_Store
 coverage/
+server/bin/
+server/obj/
+release/
+.tools/
+__pycache__/
+*.pyc
